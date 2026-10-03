@@ -1,5 +1,6 @@
 import os
 import math
+import asyncio
 import threading
 import unicodedata
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -2063,7 +2064,7 @@ async def analyze_command(
 
 
 # ============================================================
-# TELEGRAM ERROR / UPDATE LOGGING
+# TELEGRAM ERROR LOGGING
 # ============================================================
 
 async def error_handler(
@@ -2082,86 +2083,26 @@ async def error_handler(
     )
 
 
-async def post_init(
-    application: Application,
-):
-
-    print(
-        f"🔵 GoalLogic AI v{VERSION} "
-        "Telegram startup beginning...",
-        flush=True,
-    )
-
-    print(
-        "🔵 Telegram handlers loaded.",
-        flush=True,
-    )
-
-    try:
-
-        bot_info = await application.bot.get_me()
-
-        print(
-            f"✅ Telegram connection successful: "
-            f"@{bot_info.username}",
-            flush=True,
-        )
-
-        await application.bot.delete_webhook(
-            drop_pending_updates=True
-        )
-
-        print(
-            "✅ Telegram webhook cleared.",
-            flush=True,
-        )
-
-    except Exception as e:
-
-        print(
-            "❌ Telegram initialization error:",
-            flush=True,
-        )
-
-        print(
-            f"{type(e).__name__}: {e}",
-            flush=True,
-        )
-
-        raise
-
-
 # ============================================================
-# MAIN
+# TELEGRAM STARTUP
 # ============================================================
 
-def main():
+async def start_telegram():
 
     print(
-        f"⚽ GoalLogic AI v{VERSION} "
-        "Telegram bot is starting.",
+        "🔵 Creating Telegram application...",
         flush=True,
     )
-
-    if not TELEGRAM_BOT_TOKEN:
-
-        raise RuntimeError(
-            "❌ TELEGRAM_BOT_TOKEN is missing."
-        )
-
-    if not OPENFOOT_API_KEY:
-
-        print(
-            "⚠️ WARNING: "
-            "OPENFOOT_API_KEY is missing.",
-            flush=True,
-        )
 
     application = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
-        .post_init(post_init)
         .build()
+    )
+
+    print(
+        "🔵 Telegram application created.",
+        flush=True,
     )
 
     application.add_handler(
@@ -2209,14 +2150,128 @@ def main():
     )
 
     print(
-        "🔵 Starting Telegram polling...",
+        "🔵 Initializing Telegram application...",
         flush=True,
     )
 
-    application.run_polling(
+    await application.initialize()
+
+    print(
+        "✅ Telegram application initialized.",
+        flush=True,
+    )
+
+    print(
+        "🔵 Checking Telegram bot connection...",
+        flush=True,
+    )
+
+    bot_info = await application.bot.get_me()
+
+    print(
+        f"✅ Telegram connection successful: "
+        f"@{bot_info.username}",
+        flush=True,
+    )
+
+    print(
+        "🔵 Clearing Telegram webhook...",
+        flush=True,
+    )
+
+    await application.bot.delete_webhook(
+        drop_pending_updates=True
+    )
+
+    print(
+        "✅ Telegram webhook cleared.",
+        flush=True,
+    )
+
+    print(
+        "🔵 Starting Telegram application...",
+        flush=True,
+    )
+
+    await application.start()
+
+    print(
+        "✅ Telegram application started.",
+        flush=True,
+    )
+
+    print(
+        "🔵 Starting Telegram polling updater...",
+        flush=True,
+    )
+
+    await application.updater.start_polling(
         drop_pending_updates=True,
         allowed_updates=Update.ALL_TYPES,
-        close_loop=False,
+    )
+
+    print(
+        "🟢 Telegram polling started successfully.",
+        flush=True,
+    )
+
+    print(
+        "🟢 GoalLogic AI is now listening for commands.",
+        flush=True,
+    )
+
+    try:
+
+        while True:
+            await asyncio.sleep(3600)
+
+    finally:
+
+        print(
+            "🟡 Stopping Telegram polling...",
+            flush=True,
+        )
+
+        await application.updater.stop()
+
+        await application.stop()
+
+        await application.shutdown()
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    print(
+        f"⚽ GoalLogic AI v{VERSION} "
+        "Telegram bot is starting.",
+        flush=True,
+    )
+
+    if not TELEGRAM_BOT_TOKEN:
+
+        raise RuntimeError(
+            "❌ TELEGRAM_BOT_TOKEN is missing."
+        )
+
+    if not OPENFOOT_API_KEY:
+
+        print(
+            "⚠️ WARNING: "
+            "OPENFOOT_API_KEY is missing.",
+            flush=True,
+        )
+
+    print(
+        "🔵 Starting Telegram event loop...",
+        flush=True,
+    )
+
+    asyncio.run(
+        start_telegram()
     )
 
 
